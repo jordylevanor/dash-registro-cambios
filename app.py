@@ -9,12 +9,10 @@ from dash.dependencies import Input, Output, State
 server = Flask(__name__)
 app = dash.Dash(__name__, server=server, routes_pathname_prefix='/')
 
-# Cargar el archivo Excel
-import os
+# URL de Google Drive en formato descargable
+ruta_excel = "https://docs.google.com/spreadsheets/d/12AjDUOziC0-ELzN7vxWv0RdfGj2qDs4P/export?format=xlsx"
 
-# Asegurar que el archivo se lee desde la misma carpeta donde está app.py
-ruta_excel = os.path.join(os.path.dirname(__file__), "REGISTRO DE CAMBIOS.xlsx")
-
+# Cargar el archivo desde Google Drive
 df = pd.read_excel(ruta_excel, header=2)
 
 # ✅ Eliminar columnas sin nombre (Unnamed)
