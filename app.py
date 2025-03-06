@@ -82,7 +82,46 @@ def actualizar_filtro(n_clicks, columna, valor):
         print(f"⚠️ La columna '{columna}' no existe en el DataFrame.")
         return df.to_dict('records'), [{"name": i.replace('_', ' '), "id": i} for i in df.columns], px.bar(title="Columna no encontrada")
 
-    df_filtrado = df[df[columna].astype(str).str.contains(str(valor), case=False, na=False)]
+    from unidecode import unidecode  # ✅ Importamos unidecode para eliminar tildes
+
+# ✅ Función para normalizar texto
+def normalizar_texto(texto):
+    if isinstance(texto, str):  
+        return unidecode(texto).lower()
+    return texto
+
+@app.callback(
+    [Output('tabla-filtrada', 'data'),
+     Output('tabla-filtrada', 'columns'),
+     Output('grafico-atenciones', 'figure')],
+    [Input('btn-filtrar', 'n_clicks')],
+    [State('columna-filtro', 'value'),
+     State('valor-filtro', 'value')]
+)
+def actualizar_filtro(n_clicks, columna, valor):
+    if n_clicks == 0 or not columna or not valor:
+        return df.to_dict('records'), [{"name": i.replace('_', ' '), "id": i} for i in df.columns], px.bar(title="Seleccione un filtro")
+
+    # ✅ Normalizar el valor ingresado por el usuario
+    valor_normalizado = normalizar_texto(valor)
+
+    # ✅ Normalizar toda la columna antes de filtrar
+    df_filtrado = df[df[columna].astype(str).apply(normalizar_texto).str.contains(valor_normalizado, na=False)]
+
+    # ✅ Convertir todos los datos a string para evitar errores
+    df_filtrado = df_filtrado.fillna("No disponible").astype(str)
+
+    columns = [{"name": i.replace('_', ' '), "id": i} for i in df_filtrado.columns]
+    data = df_filtrado.to_dict('records')
+
+    # ✅ Verificamos si la columna 'PERSONAL' existe antes de graficar
+    if 'PERSONAL' in df_filtrado.columns and not df_filtrado.empty:
+        fig = px.bar(df_filtrado, x='PERSONAL', title="Registros por Personal", color='PERSONAL',
+                     color_discrete_sequence=px.colors.qualitative.Set1)
+    else:
+        fig = px.bar(title="Sin resultados", template="simple_white")
+
+    return data, columns, fig
 
     # ✅ Convertir todos los datos a string para evitar errores
     df_filtrado = df_filtrado.fillna("No disponible").astype(str)
