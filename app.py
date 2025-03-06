@@ -106,42 +106,34 @@ def actualizar_filtro(n_clicks, columna, valor, fecha_inicio, fecha_fin):
     data = df_filtrado.to_dict('records')
 
     # ✅ Gráfico 1: Cantidad de atenciones por personal
-    if 'PERSONAL' in df_filtrado.columns and not df_filtrado.empty:
-        df_personal = df_filtrado.groupby('PERSONAL').size().reset_index(name='Cantidad')
-
-        # Asegurar que la columna 'Cantidad' es entera
-        df_personal['Cantidad'] = df_personal['Cantidad'].astype(int)
-
+    if not df_filtrado.empty and 'PERSONAL' in df_filtrado.columns:
+        df_personal = df_filtrado['PERSONAL'].value_counts().reset_index()
+        df_personal.columns = ['PERSONAL', 'Cantidad']
+        
         fig_atenciones = px.bar(
             df_personal,
             x='PERSONAL',
             y='Cantidad',
             title="Atenciones por Personal",
             color='PERSONAL',
-            text='Cantidad',  # Muestra los valores en las barras
+            text='Cantidad',  
             color_discrete_sequence=px.colors.qualitative.Set1
         )
 
-        # Mejorar visualmente el gráfico
         fig_atenciones.update_traces(textposition='outside')
         fig_atenciones.update_layout(yaxis_title="Número de Atenciones")
     else:
         fig_atenciones = px.bar(title="Sin resultados", template="simple_white")
 
-    # ✅ Gráfico 2: Avance progresivo de atenciones (por semana o mes)
-    if 'FECHA_DE_ATENCION' in df_filtrado.columns and not df_filtrado.empty:
+    # ✅ Gráfico 2: Avance progresivo de atenciones
+    if not df_filtrado.empty and 'FECHA_DE_ATENCION' in df_filtrado.columns:
         df_progreso = df_filtrado.copy()
         df_progreso['FECHA_DE_ATENCION'] = pd.to_datetime(df_progreso['FECHA_DE_ATENCION'])
-        df_progreso['Semana'] = df_progreso['FECHA_DE_ATENCION'].dt.to_period('W').astype(str)
+        df_progreso = df_progreso.groupby(df_progreso['FECHA_DE_ATENCION'].dt.to_period('W')).size().reset_index(name='Atenciones')
 
-        df_progreso = df_progreso.groupby('Semana').size().reset_index(name='Atenciones')
-        
-        fig_progreso = px.line(df_progreso, x='Semana', y='Atenciones', title="Evolución de Atenciones Semanales",
+        fig_progreso = px.line(df_progreso, x='FECHA_DE_ATENCION', y='Atenciones', title="Evolución de Atenciones Semanales",
                                markers=True, line_shape='spline')
     else:
         fig_progreso = px.line(title="Sin datos para mostrar", template="simple_white")
 
     return data, columns, fig_atenciones, fig_progreso, opciones_columnas
-
-if __name__ == '__main__':
-    app.run_server(debug=True)
