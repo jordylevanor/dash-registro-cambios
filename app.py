@@ -36,10 +36,19 @@ app.layout = html.Div(style={'fontFamily': 'Arial', 'backgroundColor': '#f4f4f9'
     html.Div([
         html.Label("Selecciona columna a filtrar", style={'color': '#34495e'}),
         dcc.Dropdown(id='columna-filtro', placeholder="Selecciona columna", style={'marginBottom': '10px'}),
+
         html.Label("Ingrese el valor a filtrar", style={'color': '#34495e'}),
         dcc.Input(id='valor-filtro', type='text', placeholder="Valor a filtrar", style={'marginRight': '10px'}),
-        html.Label("Seleccione una fecha", style={'color': '#34495e'}),
-        dcc.DatePickerSingle(id='fecha-filtro', date=None, display_format='YYYY-MM-DD'),
+
+        html.Label("Seleccione un rango de fechas", style={'color': '#34495e'}),
+        dcc.DatePickerRange(
+            id='rango-fechas',
+            start_date=None,
+            end_date=None,
+            display_format='YYYY-MM-DD',
+            style={'marginRight': '10px'}
+        ),
+
         html.Button("Filtrar", id='btn-filtrar', n_clicks=0,
                     style={'backgroundColor': '#27ae60', 'color': 'white', 'border': 'none', 'padding': '5px 10px'})
     ], style={'marginBottom': '20px'}),
@@ -64,9 +73,10 @@ app.layout = html.Div(style={'fontFamily': 'Arial', 'backgroundColor': '#f4f4f9'
     [Input('btn-filtrar', 'n_clicks')],
     [State('columna-filtro', 'value'),
      State('valor-filtro', 'value'),
-     State('fecha-filtro', 'date')]
+     State('rango-fechas', 'start_date'),
+     State('rango-fechas', 'end_date')]
 )
-def actualizar_filtro(n_clicks, columna, valor, fecha):
+def actualizar_filtro(n_clicks, columna, valor, fecha_inicio, fecha_fin):
     # ✅ Cargar SIEMPRE la última versión del archivo al hacer clic en "Filtrar"
     df = cargar_datos()
 
@@ -80,10 +90,12 @@ def actualizar_filtro(n_clicks, columna, valor, fecha):
         valor_normalizado = normalizar_texto(valor)
         df_filtrado = df_filtrado[df_filtrado[columna].astype(str).apply(normalizar_texto).str.contains(valor_normalizado, na=False)]
 
-    # ✅ Filtrar por fecha si se seleccionó una fecha
-    if fecha:
-        fecha = pd.to_datetime(fecha).date()
-        df_filtrado = df_filtrado[df_filtrado['FECHA_DE_ATENCION'] == fecha]
+    # ✅ Filtrar por rango de fechas
+    if fecha_inicio and fecha_fin:
+        fecha_inicio = pd.to_datetime(fecha_inicio).date()
+        fecha_fin = pd.to_datetime(fecha_fin).date()
+        df_filtrado = df_filtrado[(df_filtrado['FECHA_DE_ATENCION'] >= fecha_inicio) & 
+                                  (df_filtrado['FECHA_DE_ATENCION'] <= fecha_fin)]
 
     # ✅ Convertir todos los datos a string para evitar errores
     df_filtrado = df_filtrado.fillna("No disponible").astype(str)
