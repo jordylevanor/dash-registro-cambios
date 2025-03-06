@@ -10,7 +10,7 @@ server = Flask(__name__)
 app = dash.Dash(__name__, server=server, routes_pathname_prefix='/')
 
 # Cargar el archivo Excel
-ruta_excel = "G:/Unidades compartidas/Soporte/REGISTRO DE CAMBIOS.xlsx"
+ruta_excel = "C:/Users/Jordy Levano/Documents/Proyecto/REGISTRO DE CAMBIOS.xlsx"
 df = pd.read_excel(ruta_excel, header=2)
 
 # ✅ Eliminar columnas sin nombre (Unnamed)
