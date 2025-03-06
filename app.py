@@ -19,7 +19,7 @@ def cargar_datos():
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]  # Eliminar columnas sin nombre
     df.columns = df.columns.str.strip().str.replace(' ', '_').str.replace(r'\n', '', regex=True)  # Normalizar columnas
     if 'FECHA_DE_ATENCION' in df.columns:
-        df['FECHA_DE_ATENCION'] = pd.to_datetime(df['FECHA_DE_ATENCION'], errors='coerce').dt.date
+        df['FECHA_DE_ATENCION'] = pd.to_datetime(df['FECHA_DE_ATENCION'], errors='coerce')  # Convertir a datetime
     df = df.fillna("No disponible")  # Llenar NaN
     return df
 
@@ -61,14 +61,16 @@ app.layout = html.Div(style={'fontFamily': 'Arial', 'backgroundColor': '#f4f4f9'
         style_data={'backgroundColor': '#ecf0f1', 'color': '#2c3e50'}
     ),
 
-    # Gráfico de barras
-    dcc.Graph(id='grafico-atenciones', style={'marginTop': '20px'})
+    # Gráficos
+    dcc.Graph(id='grafico-atenciones', style={'marginTop': '20px'}),
+    dcc.Graph(id='grafico-progreso', style={'marginTop': '20px'})
 ])
 
 @app.callback(
     [Output('tabla-filtrada', 'data'),
      Output('tabla-filtrada', 'columns'),
      Output('grafico-atenciones', 'figure'),
+     Output('grafico-progreso', 'figure'),
      Output('columna-filtro', 'options')],
     [Input('btn-filtrar', 'n_clicks')],
     [State('columna-filtro', 'value'),
@@ -92,8 +94,8 @@ def actualizar_filtro(n_clicks, columna, valor, fecha_inicio, fecha_fin):
 
     # ✅ Filtrar por rango de fechas
     if fecha_inicio and fecha_fin:
-        fecha_inicio = pd.to_datetime(fecha_inicio).date()
-        fecha_fin = pd.to_datetime(fecha_fin).date()
+        fecha_inicio = pd.to_datetime(fecha_inicio)
+        fecha_fin = pd.to_datetime(fecha_fin)
         df_filtrado = df_filtrado[(df_filtrado['FECHA_DE_ATENCION'] >= fecha_inicio) & 
                                   (df_filtrado['FECHA_DE_ATENCION'] <= fecha_fin)]
 
@@ -103,14 +105,31 @@ def actualizar_filtro(n_clicks, columna, valor, fecha_inicio, fecha_fin):
     columns = [{"name": i.replace('_', ' '), "id": i} for i in df_filtrado.columns]
     data = df_filtrado.to_dict('records')
 
-    # ✅ Verificar si la columna 'PERSONAL' existe antes de graficar
+    # ✅ Gráfico 1: Cantidad de atenciones por personal
     if 'PERSONAL' in df_filtrado.columns and not df_filtrado.empty:
-        fig = px.bar(df_filtrado, x='PERSONAL', title="Registros por Personal", color='PERSONAL',
-                     color_discrete_sequence=px.colors.qualitative.Set1)
+        df_personal = df_filtrado.groupby('PERSONAL').size().reset_index(name='Cantidad')
+        fig_atenciones = px.bar(df_personal, x='PERSONAL', y='Cantidad', title="Atenciones por Personal", 
+                                color='PERSONAL', text='Cantidad',
+                                color_discrete_sequence=px.colors.qualitative.Set1)
     else:
-        fig = px.bar(title="Sin resultados", template="simple_white")
+        fig_atenciones = px.bar(title="Sin resultados", template="simple_white")
 
-    return data, columns, fig, opciones_columnas
+    # ✅ Gráfico 2: Avance progresivo de atenciones (por semana o mes)
+    if 'FECHA_DE_ATENCION' in df_filtrado.columns and not df_filtrado.empty:
+        df_progreso = df_filtrado.copy()
+        df_progreso['FECHA_DE_ATENCION'] = pd.to_datetime(df_progreso['FECHA_DE_ATENCION'])
+        df_progreso['Semana'] = df_progreso['FECHA_DE_ATENCION'].dt.to_period('W').astype(str)
+        df_progreso['Mes'] = df_progreso['FECHA_DE_ATENCION'].dt.to_period('M').astype(str)
+
+        # Opción: cambiar "Semana" por "Mes" para ver avance mensual
+        df_progreso = df_progreso.groupby('Semana').size().reset_index(name='Atenciones')
+        
+        fig_progreso = px.line(df_progreso, x='Semana', y='Atenciones', title="Evolución de Atenciones Semanales",
+                               markers=True, line_shape='spline')
+    else:
+        fig_progreso = px.line(title="Sin datos para mostrar", template="simple_white")
+
+    return data, columns, fig_atenciones, fig_progreso, opciones_columnas
 
 if __name__ == '__main__':
     app.run_server(debug=True)
