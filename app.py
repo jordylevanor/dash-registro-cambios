@@ -26,7 +26,7 @@ df.columns = df.columns.str.replace(r'\n', '', regex=True)
 
 # ✅ Verificar si la columna 'FECHA_DE_ATENCION' existe antes de manipularla
 if 'FECHA_DE_ATENCION' in df.columns:
-    df['FECHA_DE_ATENCION'] = df['FECHA_DE_ATENCION'].astype(str)
+    df['FECHA_DE_ATENCION'] = pd.to_datetime(df['FECHA_DE_ATENCION'], errors='coerce').dt.date
 else:
     print("⚠️ La columna 'FECHA_DE_ATENCION' no existe en el archivo Excel.")
 
@@ -53,6 +53,12 @@ app.layout = html.Div(style={'fontFamily': 'Arial', 'backgroundColor': '#f4f4f9'
         ),
         html.Label("Ingrese el valor a filtrar", style={'color': '#34495e'}),
         dcc.Input(id='valor-filtro', type='text', placeholder="Valor a filtrar", style={'marginRight': '10px'}),
+        html.Label("Seleccione una fecha", style={'color': '#34495e'}),
+        dcc.DatePickerSingle(
+            id='fecha-filtro',
+            date=None,
+            display_format='YYYY-MM-DD'
+        ),
         html.Button("Filtrar", id='btn-filtrar', n_clicks=0,
                     style={'backgroundColor': '#27ae60', 'color': 'white', 'border': 'none', 'padding': '5px 10px'})
     ], style={'marginBottom': '20px'}),
@@ -77,17 +83,24 @@ app.layout = html.Div(style={'fontFamily': 'Arial', 'backgroundColor': '#f4f4f9'
      Output('grafico-atenciones', 'figure')],
     [Input('btn-filtrar', 'n_clicks')],
     [State('columna-filtro', 'value'),
-     State('valor-filtro', 'value')]
+     State('valor-filtro', 'value'),
+     State('fecha-filtro', 'date')]
 )
-def actualizar_filtro(n_clicks, columna, valor):
-    if n_clicks == 0 or not columna or not valor:
+def actualizar_filtro(n_clicks, columna, valor, fecha):
+    if n_clicks == 0:
         return df.to_dict('records'), [{"name": i.replace('_', ' '), "id": i} for i in df.columns], px.bar(title="Seleccione un filtro")
 
-    # ✅ Normalizar el valor ingresado por el usuario
-    valor_normalizado = normalizar_texto(valor)
+    df_filtrado = df.copy()
 
-    # ✅ Normalizar toda la columna antes de filtrar
-    df_filtrado = df[df[columna].astype(str).apply(normalizar_texto).str.contains(valor_normalizado, na=False)]
+    # ✅ Filtrar por texto si se ingresó un valor
+    if columna and valor:
+        valor_normalizado = normalizar_texto(valor)
+        df_filtrado = df_filtrado[df_filtrado[columna].astype(str).apply(normalizar_texto).str.contains(valor_normalizado, na=False)]
+
+    # ✅ Filtrar por fecha si se seleccionó una fecha
+    if fecha:
+        fecha = pd.to_datetime(fecha).date()
+        df_filtrado = df_filtrado[df_filtrado['FECHA_DE_ATENCION'] == fecha]
 
     # ✅ Convertir todos los datos a string para evitar errores
     df_filtrado = df_filtrado.fillna("No disponible").astype(str)
