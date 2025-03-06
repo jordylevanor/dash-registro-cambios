@@ -105,14 +105,28 @@ def actualizar_filtro(n_clicks, columna, valor, fecha_inicio, fecha_fin):
     columns = [{"name": i.replace('_', ' '), "id": i} for i in df_filtrado.columns]
     data = df_filtrado.to_dict('records')
 
-    # ✅ Gráfico 1: Cantidad de atenciones por personal
-    if 'PERSONAL' in df_filtrado.columns and not df_filtrado.empty:
-        df_personal = df_filtrado.groupby('PERSONAL').size().reset_index(name='Cantidad')
-        fig_atenciones = px.bar(df_personal, x='PERSONAL', y='Cantidad', title="Atenciones por Personal", 
-                                color='PERSONAL', text='Cantidad',
-                                color_discrete_sequence=px.colors.qualitative.Set1)
-    else:
-        fig_atenciones = px.bar(title="Sin resultados", template="simple_white")
+# ✅ Gráfico 1: Cantidad de atenciones por personal
+if 'PERSONAL' in df_filtrado.columns and not df_filtrado.empty:
+    df_personal = df_filtrado.groupby('PERSONAL').size().reset_index(name='Cantidad')
+
+    # Asegurar que la columna 'Cantidad' es entera
+    df_personal['Cantidad'] = df_personal['Cantidad'].astype(int)
+
+    fig_atenciones = px.bar(
+        df_personal,
+        x='PERSONAL',
+        y='Cantidad',
+        title="Atenciones por Personal",
+        color='PERSONAL',
+        text='Cantidad',  # Muestra los valores en las barras
+        color_discrete_sequence=px.colors.qualitative.Set1
+    )
+
+    # Mejorar visualmente el gráfico
+    fig_atenciones.update_traces(textposition='outside')
+    fig_atenciones.update_layout(yaxis_title="Número de Atenciones")
+else:
+    fig_atenciones = px.bar(title="Sin resultados", template="simple_white")
 
     # ✅ Gráfico 2: Avance progresivo de atenciones (por semana o mes)
     if 'FECHA_DE_ATENCION' in df_filtrado.columns and not df_filtrado.empty:
