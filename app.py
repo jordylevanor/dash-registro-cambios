@@ -15,19 +15,27 @@ ruta_excel = "https://docs.google.com/spreadsheets/d/12AjDUOziC0-ELzN7vxWv0RdfGj
 
 # ✅ Función para cargar siempre la versión más reciente del archivo
 def cargar_datos():
-    df = pd.read_excel(ruta_excel, header=2)
-    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]  # Eliminar columnas sin nombre
-    df.columns = df.columns.str.strip().str.replace(' ', '_').str.replace(r'\n', '', regex=True)  # Normalizar columnas
-    if 'FECHA_DE_ATENCION' in df.columns:
-        df['FECHA_DE_ATENCION'] = pd.to_datetime(df['FECHA_DE_ATENCION'], errors='coerce')  # Convertir a datetime
-    df = df.fillna("No disponible")  # Llenar NaN
-    return df
+    try:
+        df = pd.read_excel(ruta_excel, header=2)
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]  # Eliminar columnas sin nombre
+        df.columns = df.columns.str.strip().str.replace(' ', '_').str.replace(r'\n', '', regex=True)  # Normalizar nombres de columnas
+        if 'FECHA_DE_ATENCION' in df.columns:
+            df['FECHA_DE_ATENCION'] = pd.to_datetime(df['FECHA_DE_ATENCION'], errors='coerce')  # Convertir a datetime
+        df = df.fillna("No disponible")  # Llenar NaN
+        return df
+    except Exception as e:
+        print("⚠️ Error al cargar el archivo:", e)
+        return pd.DataFrame()  # Retorna un DataFrame vacío en caso de error
 
-# ✅ Función para normalizar texto (elimina mayúsculas y tildes)
+# ✅ Función para normalizar texto (evita problemas con mayúsculas y tildes)
 def normalizar_texto(texto):
     if isinstance(texto, str):  
         return unidecode(texto).lower()
     return texto
+
+# ✅ Cargar los datos inicialmente para evitar Dropdown vacío
+df_inicial = cargar_datos()
+opciones_columnas = [{'label': col.replace('_', ' '), 'value': col} for col in df_inicial.columns] if not df_inicial.empty else []
 
 app.layout = html.Div(style={'fontFamily': 'Arial', 'backgroundColor': '#f4f4f9', 'padding': '20px'}, children=[
     html.H1("Filtro de REGISTRO DE CAMBIOS", style={'textAlign': 'center', 'color': '#2c3e50'}),
@@ -35,7 +43,7 @@ app.layout = html.Div(style={'fontFamily': 'Arial', 'backgroundColor': '#f4f4f9'
     # Filtros
     html.Div([
         html.Label("Selecciona columna a filtrar", style={'color': '#34495e'}),
-        dcc.Dropdown(id='columna-filtro', placeholder="Selecciona columna", style={'marginBottom': '10px'}),
+        dcc.Dropdown(id='columna-filtro', options=opciones_columnas, placeholder="Selecciona columna", style={'marginBottom': '10px'}),
 
         html.Label("Ingrese el valor a filtrar", style={'color': '#34495e'}),
         dcc.Input(id='valor-filtro', type='text', placeholder="Valor a filtrar", style={'marginRight': '10px'}),
@@ -83,7 +91,7 @@ def actualizar_filtro(n_clicks, columna, valor, fecha_inicio, fecha_fin):
     df = cargar_datos()
 
     # ✅ Generar opciones del dropdown con las columnas más recientes
-    opciones_columnas = [{'label': col.replace('_', ' '), 'value': col} for col in df.columns]
+    opciones_columnas = [{'label': col.replace('_', ' '), 'value': col} for col in df.columns] if not df.empty else []
 
     df_filtrado = df.copy()
 
